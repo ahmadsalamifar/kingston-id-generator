@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kingston ID Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Arial:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --font-ui: 'Inter', sans-serif;
+            --kingston-blue: #0069B4;
+        }
+
+        body { font-family: var(--font-ui); background-color: #f3f4f6; }
+
+        /* --- Scan Effect Container --- */
+        .scan-container {
+            position: relative;
+            padding: 20px;
+            filter: contrast(115%) brightness(92%) sepia(8%) grayscale(10%) blur(0.3px);
+            transform-origin: center;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+        }
+
+        /* --- Card CSS --- */
+        .id-card-template {
+            width: 600px;
+            height: 378px;
+            background-color: #fcfcfc;
+            border-radius: 18px;
+            position: relative;
+            overflow: hidden; 
+            font-family: 'Arial', sans-serif;
+            box-shadow: 2px 5px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,0,0,0.15); 
+            transform: translateZ(0);
+        }
+
+        /* Texture & Gloss */
+        .texture-overlay {
+            position: absolute; inset: 0;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3d5eXl6enp2dnZ4eHh1dXV0dHRwcHBzdXVubm5vb29xcXFycXFxcXBzc3NzcXBwcG9ycXFwcHBwcHBxcXFxcXBxcXFwcHBoVw+8AAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvzkccAAAAcElEQVR4Ae3RAQ7DIAwEwE+A8f9/2mZ7Y4cEElp+XQ+L46x1n8d5X/dx39f93Pf93A/90I/92A/90I/92A/90I/92A/90I/92A/90I/92A/90I/92A/90I/92A/90I/92A/90I/9H7f+AV+A4P0EAAAAAElFTkSuQmCC');
+            opacity: 0.08; mix-blend-mode: multiply; pointer-events: none; z-index: 50;
+        }
+        .gloss-overlay {
+            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(135deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 60%);
+            pointer-events: none; z-index: 51;
+        }
+
+        /* Card Elements */
+        .kingston-logo {
+            position: absolute; top: 25px; left: 28px; width: 110px; height: 90px;
+            background-color: var(--kingston-blue); color: white; padding: 10px 12px;
+            z-index: 10; display: flex; flex-direction: column; justify-content: center;
+        }
+        
+        .right-sidebar {
+            position: absolute; 
+            top: 0;
+            right: 0; 
+            width: 45px; 
+            height: 100%;
+            background-color: var(--kingston-blue);
+            border-top-right-radius: 17px; 
+            border-bottom-right-radius: 17px;
+            display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        
+        .student-vertical-text {
+            color: white; 
+            font-weight: 700; 
+            font-size: 24px; /* Reduced from 26px */
+            letter-spacing: 1.5px;
+            /* rotate -90deg turns it. translateY(-4px) pushes it 'up' relative to itself, which is 'left' visually away from the edge */
+            transform: rotate(-90deg) translateY(-4px); 
+            white-space: nowrap;
+        }
+        
+        .photo-wrapper {
+            position: absolute; top: 35px; right: 65px; width: 150px; height: 195px;
+            background: #ddd; overflow: hidden; z-index: 5;
+        }
+        .student-photo { width: 100%; height: 100%; object-fit: cover; filter: contrast(110%) sepia(10%); }
+        
+        /* Typography */
+        .content-area { position: absolute; top: 155px; left: 28px; width: 350px; color: #000; z-index: 5; }
+        .surname { text-transform: uppercase; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 5px; margin-bottom: 15px; width: 320px; }
+        .label { font-size: 15px; color: #444; margin-bottom: 2px; }
+        .value { font-size: 16px; font-weight: 700; color: #000; }
+        .value.blue-text { color: #005696; }
+        
+        [contenteditable]:focus { outline: 2px solid var(--kingston-blue); background: rgba(0, 105, 180, 0.1); }
+
+        /* Responsive Preview */
+        @media (max-width: 768px) {
+            .scan-container { transform: scale(0.55); margin: -80px; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4">
+
+    <!-- Main Container -->
+    <div class="bg-white p-6 md:p-10 rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col items-center gap-8">
+        
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Kingston ID Generator</h1>
+            <p class="text-gray-500">Realistic scanned-effect student ID card generator.</p>
+        </div>
+
+        <!-- Card Preview Area -->
+        <div class="relative group">
+            <div class="scan-container" id="scan-container">
+                <div class="id-card-template" id="card-template">
+                    <div class="texture-overlay"></div>
+                    <div class="gloss-overlay"></div>
+
+                    <!-- Logo -->
+                    <div class="kingston-logo">
+                        <div class="font-bold text-[19px] leading-none mb-[2px] tracking-tight">Kingston</div>
+                        <div class="font-normal text-[19px] leading-none mb-[6px] tracking-tight">University</div>
+                        <div class="font-normal text-[15px] leading-none opacity-90">London</div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="right-sidebar">
+                        <div class="student-vertical-text">STUDENT</div>
+                    </div>
+
+                    <!-- Photo -->
+                    <div class="photo-wrapper">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=334&q=80" alt="Student Photo" class="student-photo" id="photo-img">
+                    </div>
+
+                    <!-- Content -->
+                    <div class="content-area">
+                        <div class="mb-[25px]">
+                            <div class="text-[22px] leading-[1.2] text-[#111]" contenteditable="true" id="fname">Daniel</div>
+                            <div class="text-[24px] font-bold leading-[1.2] surname" contenteditable="true" id="lname">ROOKE</div>
+                        </div>
+
+                        <div class="details-grid">
+                            <div class="col">
+                                <div class="label">Username</div>
+                                <div class="value blue-text" contenteditable="true" id="username">K1122133</div>
+                            </div>
+                            <div class="col">
+                                <div class="label">Student ID</div>
+                                <div class="value" contenteditable="true" id="studentid">1122133</div>
+                            </div>
+                            <div class="col">
+                                <div class="label">Faculty</div>
+                                <div class="value" contenteditable="true" id="faculty">DE / UG</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="absolute bottom-[75px] left-[28px] text-[12px] text-[#111]">This card must be displayed at examinations</div>
+                    
+                    <div class="absolute bottom-[22px] left-[28px] w-[280px] h-[45px]">
+                        <svg id="barcode-svg" class="w-full h-full block" preserveAspectRatio="none"></svg>
+                    </div>
+
+                    <div class="absolute bottom-[30px] right-[65px] text-right w-[150px]">
+                        <div class="text-[15px] text-[#333] mb-[2px]">Expires:</div>
+                        <div class="text-[17px] font-bold mb-[4px]" contenteditable="true" id="expiry">07 Jul 2024</div>
+                        <div class="text-[13px] text-[#222]" contenteditable="true" id="issue">Issue No. 2</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="w-full max-w-2xl bg-gray-50 p-6 rounded-2xl border border-gray-200">
+            
+            <!-- Email Box -->
+            <div id="email-box" class="bg-white border border-gray-300 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-blue-500 hover:shadow-md transition mb-6 group">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <span class="text-gray-500 font-bold text-sm">Email:</span>
+                    <span class="text-blue-600 font-bold font-mono text-lg truncate" id="generated-email">k1122133@kingston.ac.uk</span>
+                </div>
+                <span class="text-xs text-gray-400 group-hover:text-blue-500 transition" id="copy-status">(Click to copy)</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-bold py-3 px-4 rounded-xl cursor-pointer text-center transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span>Upload Photo</span>
+                    <input type="file" id="upload-photo" accept="image/*" class="hidden">
+                </label>
+
+                <button onclick="randomizeData()" class="bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:text-purple-600 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>Randomize Info</span>
+                </button>
+
+                <button onclick="downloadCleanImage()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2">
+                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    <span>Download Clean (Fit)</span>
+                </button>
+
+                <button onclick="downloadImage()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>Download Scanned (A4)</span>
+                </button>
+
+                <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 sm:col-span-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    <span>Download PDF (Compressed)</span>
+                </button>
+            </div>
+            
+            <p class="text-center text-gray-400 text-sm mt-4">Tip: Click on any text on the card to edit it.</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+        <p class="text-gray-400 text-sm">Client-side processing • No data sent to server</p>
+        <p class="text-gray-400 text-sm mt-2">
+            Developed by
+            <a href="https://github.com/ahmadsalamifar/" target="_blank" class="text-blue-500 hover:text-blue-600 font-medium transition-colors">
+                Ahmad Salami Far
+            </a>
+        </p>
+    </div>
+
+    <script>
+        // --- Logic for Scanned Effect ---
+        function generateBarcode() {
+            const svg = document.getElementById('barcode-svg');
+            svg.innerHTML = '';
+            let x = 0;
+            while(x < 100) {
+                const width = Math.random() > 0.6 ? 2.5 : 1;
+                const gap = Math.random() > 0.6 ? 2 : 1;
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("x", `${x}%`); rect.setAttribute("y", "0");
+                rect.setAttribute("width", `${width}%`); rect.setAttribute("height", "100%");
+                rect.setAttribute("fill", "#000");
+                svg.appendChild(rect);
+                x += width + gap;
+            }
+        }
+
+        function randomizeData() {
+            const firstNames = ["Daniel", "Sarah", "James", "Emily", "Michael", "Jessica", "David", "Emma", "Ali", "Fatima", "Oliver", "Lucas"];
+            const lastNames = ["ROOKE", "SMITH", "JOHNSON", "WILLIAMS", "BROWN", "JONES", "GARCIA", "MILLER", "DAVIS", "REZAEI"];
+            const faculties = ["DE / UG", "KB / P", "NS / P", "HS / U", "FA / UG", "SE / PG"];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            document.getElementById('fname').innerText = firstNames[Math.floor(Math.random() * firstNames.length)];
+            document.getElementById('lname').innerText = lastNames[Math.floor(Math.random() * lastNames.length)];
+            
+            const idBase = Math.floor(1000000 + Math.random() * 9000000);
+            document.getElementById('studentid').innerText = idBase;
+            const username = "K" + idBase;
+            document.getElementById('username').innerText = username; 
+            document.getElementById('faculty').innerText = faculties[Math.floor(Math.random() * faculties.length)];
+            
+            const expYear = new Date().getFullYear() + Math.floor(Math.random() * 4);
+            const expMonth = months[Math.floor(Math.random() * months.length)];
+            const expDay = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
+            document.getElementById('expiry').innerText = `${expDay} ${expMonth} ${expYear}`;
+            document.getElementById('issue').innerText = "Issue No. " + (Math.floor(Math.random() * 3) + 1);
+            
+            generateBarcode();
+            document.getElementById('generated-email').innerText = `${username.toLowerCase()}@kingston.ac.uk`;
+            
+            // Random Rotation
+            const rotation = (Math.random() * 1.5 - 0.75).toFixed(2);
+            document.getElementById('scan-container').style.transform = `rotate(${rotation}deg)`;
+        }
+
+        document.getElementById('email-box').addEventListener('click', function() {
+            const email = document.getElementById('generated-email').innerText;
+            navigator.clipboard.writeText(email).then(() => {
+                const status = document.getElementById('copy-status');
+                const original = status.innerText;
+                status.innerText = "(Copied!)";
+                status.classList.add('text-green-500');
+                setTimeout(() => {
+                    status.innerText = original;
+                    status.classList.remove('text-green-500');
+                }, 2000);
+            });
+        });
+
+        document.getElementById('upload-photo').addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => document.getElementById('photo-img').src = e.target.result;
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        async function downloadCleanImage() {
+            const btn = event.currentTarget;
+            const originalText = btn.innerText;
+            btn.innerText = "Processing...";
+
+            try {
+                // Capture JUST the card template, ignoring the scan container (rotation/filters)
+                const cardTemplate = document.getElementById('card-template');
+                
+                const canvas = await html2canvas(cardTemplate, {
+                    scale: 3, // High resolution
+                    useCORS: true,
+                    backgroundColor: null // Transparent corners if any
+                });
+
+                const link = document.createElement('a');
+                link.download = `kingston-id-clean.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (error) {
+                console.error("Export failed:", error);
+                alert("Could not generate image.");
+            } finally {
+                btn.innerText = originalText;
+            }
+        }
+
+        async function downloadImage() {
+            const btn = event.currentTarget;
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            
+            try {
+                // 1. Capture the scanned card (high resolution)
+                const scanContainer = document.getElementById('scan-container');
+                const cardCanvas = await html2canvas(scanContainer, {
+                    scale: 3, 
+                    useCORS: true,
+                    backgroundColor: null
+                });
+
+                // 2. Setup A4 Canvas at 300 DPI
+                const dpi = 300;
+                const a4WidthPx = 2480;
+                const a4HeightPx = 3508;
+                
+                const finalCanvas = document.createElement('canvas');
+                finalCanvas.width = a4WidthPx;
+                finalCanvas.height = a4HeightPx;
+                const ctx = finalCanvas.getContext('2d');
+
+                // 3. Fill with white background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, a4WidthPx, a4HeightPx);
+
+                // 4. Calculate Card Dimensions on A4
+                const cardRealWidthMm = 85.6;
+                const mmPerCssPixel = 85.6 / 600;
+                
+                // cardCanvas.width is (CSS Width * Scale 3) due to rotation padding
+                const containerCssWidth = cardCanvas.width / 3;
+                const containerRealWidthMm = containerCssWidth * mmPerCssPixel;
+                
+                // Convert MM to A4 Pixels at 300 DPI
+                const finalImageWidthPx = (containerRealWidthMm / 25.4) * dpi;
+                
+                // Maintain aspect ratio
+                const cardAspectRatio = cardCanvas.width / cardCanvas.height;
+                const finalImageHeightPx = finalImageWidthPx / cardAspectRatio;
+
+                // 5. Position: Centered horizontally, 20mm from top
+                const marginTopPx = (20 / 25.4) * dpi;
+                const marginLeftPx = (a4WidthPx - finalImageWidthPx) / 2;
+
+                // 6. Draw the card
+                ctx.drawImage(cardCanvas, marginLeftPx, marginTopPx, finalImageWidthPx, finalImageHeightPx);
+
+                // 7. Download
+                const link = document.createElement('a');
+                link.download = `kingston-id-scanned-a4.png`;
+                link.href = finalCanvas.toDataURL('image/png');
+                link.click();
+                
+            } catch (error) {
+                console.error("Export failed:", error);
+                alert("Could not generate image.");
+            } finally {
+                btn.innerText = originalText;
+            }
+        }
+
+        function downloadPDF() {
+            const btn = event.currentTarget;
+            const originalText = btn.innerText;
+            btn.innerText = "Compressing...";
+
+            // CAPTURE ONLY THE CARD TEMPLATE, NOT THE PADDED CONTAINER
+            const elementToCapture = document.getElementById('card-template');
+            
+            // To capture rotation, we must temporarily apply rotation to the element 
+            // or clone it. But for a clean "scan" look without huge padding:
+            // We'll capture the rotated container but crop it or center it better.
+            
+            // BETTER APPROACH: Capture the `scan-container` which has padding, 
+            // but rely on `card-template` sizing logic.
+            
+            const container = document.getElementById('scan-container');
+
+             html2canvas(container, { 
+                 scale: 3, 
+                 useCORS: true, 
+                 backgroundColor: '#ffffff' // Force white background to prevent black transparent areas
+             }).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                
+                // COMPRESSION MAGIC: Use JPEG with 0.8 quality instead of PNG
+                const imgData = canvas.toDataURL('image/jpeg', 0.80);
+                
+                const props = pdf.getImageProperties(imgData);
+                
+                // The container has padding (20px). 
+                // We want the inner card (600px) to be 85.6mm.
+                // Container width is approx 640px + rotation width.
+                // Let's approximate: 600px CSS = 85.6mm.
+                // Scale factor:
+                const mmPerPixel = 85.6 / 600; 
+                
+                // Calculate width based on the CANVAS width (which includes padding/rotation)
+                // canvas.width is roughly (Container CSS Width * 3)
+                // We need to scale the WHOLE image so that the 600px card part equals 85.6mm
+                // Container CSS width is approx 640px.
+                // Ratio: (Canvas Width / 3) / 600 * 85.6 is roughly the MM width of the image.
+                
+                // Let's use the natural Aspect Ratio of the capture
+                // If we force the whole image to be slightly larger than 85.6mm (to account for padding)
+                // it will look correct.
+                // Padding is 20px on sides. Total width ~640px.
+                // 640/600 * 85.6 = ~91.3mm
+                
+                const cssWidthOfContainer = canvas.width / 3; // Approximate CSS width captured
+                const widthInMM = cssWidthOfContainer * (85.6 / 600);
+                
+                const heightInMM = (props.height * widthInMM) / props.width;
+                
+                pdf.addImage(imgData, 'JPEG', (210 - widthInMM)/2, 20, widthInMM, heightInMM);
+                pdf.save(`kingston-id-${document.getElementById('username').innerText}.pdf`);
+                
+                btn.innerText = originalText;
+            });
+        }
+
+        window.onload = randomizeData;
+    </script>
+</body>
+</html>
